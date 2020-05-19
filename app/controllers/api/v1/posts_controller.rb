@@ -1,24 +1,28 @@
 class PostsController < ApplicationController
 
   def create
-    @user = get_current_user()
-    params[:user_id] = @user.id
+    @post = Post.new(post_params)
+    @post.user = current_user
+    @post.image.attach(io: image_io, filename: image_name)
 
-    @post = Post.create(post_params())
-    respond_to_post()
-  end
-
-  private def post_params
-    params.permit(:user_id, :caption, :image)
-  end
-
-  private def respond_to_post()
-    if @post.valid?()
-      post_serializer = PostSerializer.new(post: @post, user: @user)
-      render json: post_serializer.serialize_new_post()
-    else
-      render json: { errors: post.errors }, status: 400
+    unless @post.save
+      puts @post.errors.inspect
+      render json: { error: "Unable to create post" }, status: 422
     end
   end
 
+  private
+
+  def post_params
+    params.require(:post).permit(:title, :description)
+  end
+
+  def image_io
+    decoded_image = Base64.decode64(params[:post][:image])
+     StringIO.new(decoded_image)
+  end
+
+  def image_name
+    params[:post][:file_name]
+  end
 end
